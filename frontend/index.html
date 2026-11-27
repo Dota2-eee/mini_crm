@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мини-CRM — Учёт клиентов и сделок</title>
+    <!-- Подключаем Bootstrap 5 для адаптивной вёрстки (ПК + телефон) -->
+    <link href="https://jsdelivr.net" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<!-- Шапка сайта -->
+<nav class="navbar navbar-dark bg-primary mb-4">
+    <div class="container">
+        <span class="navbar-brand fw-bold">Мини-CRM</span>
+        <div id="userInfo" class="d-none text-white d-flex align-items-center gap-3">
+            <span>Пользователь: <b id="navUsername"></b> (<span id="navRole"></span>)</span>
+            <button class="btn btn-outline-light btn-sm" onclick="logout()">Выйти</button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <!-- Блок для вывода ошибок и уведомлений -->
+    <div id="alertBox" class="alert d-none" role="alert"></div>
+
+    <!-- 1. ЭКРАН ВХОДА И РЕГИСТРАЦИИ -->
+    <div id="authSection" class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-3" id="authTabs">
+                        <li class="nav-item">
+                            <button class="nav-link active" onclick="switchAuthTab('login', this)">Вход</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" onclick="switchAuthTab('register', this)">Регистрация</button>
+                        </li>
+                    </ul>
+
+                    <!-- Форма входа -->
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Логин</label>
+                            <input type="text" id="loginUsername" class="form-control" required minlength="3">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Пароль</label>
+                            <input type="password" id="loginPassword" class="form-control" required minlength="4">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Войти в систему</button>
+                    </form>
+
+                    <!-- Форма регистрации -->
+                    <form id="registerForm" class="d-none" onsubmit="handleRegister(event)">
+                        <div class="mb-3">
+                            <label class="form-label">Придумайте логин (от 3 символов)</label>
+                            <input type="text" id="regUsername" class="form-control" required minlength="3">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Придумайте пароль (от 4 символов)</label>
+                            <input type="password" id="regPassword" class="form-control" required minlength="4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Роль в системе</label>
+                            <select id="regRole" class="form-select">
+                                <option value="manager">Менеджер (видит только свои сделки)</option>
+                                <option value="admin">Администратор (видит всё и может удалять)</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Зарегистрироваться</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. ОСНОВНОЙ РАБОЧИЙ ЭКРАН CRM -->
+    <div id="crmSection" class="d-none">
+        
+        <!-- ДАШБОРД (Агрегатные суммы по статусам) -->
+        <h4 class="mb-3">Дашборд воронки продаж</h4>
+        <div class="row g-3 mb-4" id="dashboardCards">
+            <div class="col-6 col-md-3">
+                <div class="card border-primary h-100">
+                    <div class="card-body">
+                        <h6 class="text-primary">Новые (<span id="stat-new-count">0</span>)</h6>
+                        <h5 class="mb-0"><span id="stat-new-sum">0</span> ₽</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-warning h-100">
+                    <div class="card-body">
+                        <h6 class="text-warning">В работе (<span id="stat-in_progress-count">0</span>)</h6>
+                        <h5 class="mb-0"><span id="stat-in_progress-sum">0</span> ₽</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-success h-100">
+                    <div class="card-body">
+                        <h6 class="text-success">Успешно (<span id="stat-won-count">0</span>)</h6>
+                        <h5 class="mb-0"><span id="stat-won-sum">0</span> ₽</h5>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card border-danger h-100">
+                    <div class="card-body">
+                        <h6 class="text-danger">Отказ (<span id="stat-lost-count">0</span>)</h6>
+                        <h5 class="mb-0"><span id="stat-lost-sum">0</span> ₽</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- БЛОК КЛИЕНТОВ -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white fw-bold">Клиенты</div>
+                    <div class="card-body">
+                        <!-- Добавление клиента -->
+                        <form onsubmit="addClient(event)" class="mb-3">
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="text" id="clientName" class="form-control form-control-sm" placeholder="Имя клиента *" required minlength="2">
+                                </div>
+                                <div class="col-6">
+                                    <input type="text" id="clientPhone" class="form-control form-control-sm" placeholder="Телефон *" required minlength="5">
+                                </div>
+                                <div class="col-6">
+                                    <input type="email" id="clientEmail" class="form-control form-control-sm" placeholder="Email">
+                                </div>
+                                <div class="col-6">
+                                    <input type="text" id="clientCompany" class="form-control form-control-sm" placeholder="Компания">
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">+ Добавить клиента</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Поиск клиентов -->
+                        <input type="text" id="clientSearch" class="form-control form-control-sm mb-2" placeholder="Поиск по имени, телефону или компании..." oninput="loadClients()">
+
+                        <!-- Таблица клиентов -->
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Имя</th>
+                                        <th>Телефон</th>
+                                        <th>Компания</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clientsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- БЛОК СДЕЛОК -->
+            <div class="col-lg-7">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white fw-bold">Сделки</div>
+                    <div class="card-body">
+                        <!-- Добавление сделки -->
+                        <form onsubmit="addDeal(event)" class="mb-3">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <input type="text" id="dealTitle" class="form-control form-control-sm" placeholder="Название сделки *" required minlength="2">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" id="dealAmount" class="form-control form-control-sm" placeholder="Сумма ₽ *" required min="0" step="0.01">
+                                </div>
+                                <div class="col-md-3">
+                                    <select id="dealClientSelect" class="form-select form-select-sm" required>
+                                        <option value="">Выберите клиента...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-success btn-sm w-100">+ Сделка</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Поиск и фильтр сделок -->
+                        <div class="row g-2 mb-2">
